@@ -1,0 +1,10 @@
+php_timezone: "Europe/Paris"
+zabbix_server_db_host: "{{ hostvars['Zabbix-Database'].ansible_host }}"
+zabbix_server_db_name: "zabbix"
+zabbix_server_db_user: "zabbix"
+zabbix_server_db_password: "{{ zabbix_db_password }}"
+zabbix_server_db_type: "mysql"
+
+firewall_ports:
+  - 80/tcp
+  - 443/tcp

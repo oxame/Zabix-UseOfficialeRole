@@ -1,0 +1,13 @@
+- name: Activer firewalld
+  service:
+    name: firewalld
+    state: started
+    enabled: yes
+
+- name: Ajouter ports Zabbix nécessaires
+  firewalld:
+    port: "{{ item }}"
+    permanent: yes
+    state: enabled
+    immediate: yes
+  loop: "{{ firewall_ports }}"

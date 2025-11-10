@@ -1,0 +1,4 @@
+firewall_ports:
+  - 10051/tcp
+  - 10050/tcp
+  - 10052/tcp

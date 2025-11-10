@@ -1,0 +1,249 @@
+---
+- name: Pré-requis communs (PyMySQL, firewalld)
+  hosts: all
+  become: yes 
+  tasks:
+    - name: Installer dépendances de base
+      dnf:
+        name:
+          - python3-PyMySQL
+          - policycoreutils-python-utils
+          - firewalld
+        state: present
+
+    - name: Activer firewalld
+      systemd:
+        name: firewalld
+        state: started
+        enabled: yes
+
+# --------------------- DATABASE ---------------------
+- name: Base de données MariaDB pour Zabbix
+  hosts: Database
+  become: yes 
+  vars:
+    mariadb_conf_dir: /etc/my.cnf.d
+  tasks:
+    - name: Installer MariaDB
+      dnf:
+        name:
+          - mariadb
+          - mariadb-server
+          - mariadb-backup
+        state: present
+
+    - name: Activer et démarrer MariaDB
+      systemd:
+        name: mariadb
+        state: started
+        enabled: yes
+
+    - name: Permettre l’écoute réseau (bind-address)
+      copy:
+        dest: "{{ mariadb_conf_dir }}/zabbix-bind.cnf"
+        content: |
+          [mysqld]
+          bind-address=0.0.0.0
+          character-set-server = utf8mb4
+          collation-server = utf8mb4_bin
+      notify: Restart MariaDB
+
+    - name: Ouvrir le port 3306/tcp et limiter aux front+server (et proxy si besoin)
+      ansible.posix.firewalld:
+        port: 3306/tcp
+        permanent: yes
+        state: enabled
+        immediate: yes
+
+    - name: Créer la base Zabbix
+      community.mysql.mysql_db:
+        name: "{{ zbx_db_name }}"
+        state: present
+        encoding: utf8mb4
+        collation: utf8mb4_bin
+        login_unix_socket: /var/lib/mysql/mysql.sock
+
+    - name: Créer l’utilisateur Zabbix pour accès depuis front et server
+      community.mysql.mysql_user:
+        name: "{{ zbx_db_user }}"
+        host: "{{ item }}"
+        password: "{{ zbx_db_pass }}"
+        priv: "{{ zbx_db_name }}.*:ALL"
+        state: present
+        login_unix_socket: /var/lib/mysql/mysql.sock
+      loop:
+        - "{{ hostvars['Zabbix-FrontWeb'].ansible_host }}"
+        - "{{ hostvars['Zabbix-serveur'].ansible_host }}"
+        - "localhost"
+
+    - name: Autoriser les fonctions stockées (avant import)
+      community.mysql.mysql_variables:
+        variable: log_bin_trust_function_creators
+        value: 1
+        login_unix_socket: /var/lib/mysql/mysql.sock
+
+    - name: Vérifier si la base Zabbix est déjà initialisée
+      community.mysql.mysql_query:
+        login_user: "{{ zbx_db_user }}"
+        login_password: "{{ zbx_db_pass }}"
+        login_host: localhost
+        query: "SHOW TABLES FROM {{ zbx_db_name }} LIKE 'users';"
+      register: zbx_schema_check
+
+    - name: Importer le schéma serveur Zabbix
+      community.mysql.mysql_db:
+        state: import
+        name: "{{ zbx_db_name }}"
+        target: /usr/share/zabbix/sql-scripts/mysql/server.sql.gz
+        login_user: "{{ zbx_db_user }}"
+        login_password: "{{ zbx_db_pass }}"
+        login_host: localhost
+      when: zbx_schema_check.query_result[0] | length == 0
+
+    - name: Re-désactiver log_bin_trust_function_creators
+      community.mysql.mysql_variables:
+        variable: log_bin_trust_function_creators
+        value: 0
+        login_unix_socket: /var/lib/mysql/mysql.sock
+
+  handlers:
+    - name: Restart MariaDB
+      systemd:
+        name: mariadb
+        state: restarted
+
+# --------------------- ZABBIX SERVER ---------------------
+- name: Zabbix Server
+  hosts: Serveur
+  become: yes 
+  roles:
+    - role: community.zabbix.zabbix_server
+      vars:
+        zabbix_server_dbhost: "{{ zbx_db_host }}"
+        zabbix_server_dbname: "{{ zbx_db_name }}"
+        zabbix_server_dbuser: "{{ zbx_db_user }}"
+        zabbix_server_dbpassword: "{{ zbx_db_pass }}"
+        zabbix_version: "{{ zabbix_version }}"
+  tasks:
+    - name: Ouvrir 10051/tcp (server)
+      ansible.posix.firewalld:
+        port: 10051/tcp
+        permanent: yes
+        state: enabled
+        immediate: yes
+
+    - name: Tuning de /etc/zabbix/zabbix_server.conf (exemples)
+      lineinfile:
+        path: /etc/zabbix/zabbix_server.conf
+        regexp: '^{{ item.key }}='
+        line: '{{ item.key }}={{ item.value }}'
+        backup: yes
+      loop:
+        - { key: StartPollers, value: 10 }
+        - { key: CacheSize, value: 512M }
+        - { key: HistoryCacheSize, value: 512M }
+      notify: Restart zabbix-server
+
+  handlers:
+    - name: Restart zabbix-server
+      systemd:
+        name: zabbix-server
+        state: restarted
+
+# --------------------- FRONT WEB ---------------------
+- name: Zabbix FrontWeb
+  hosts: FrontWeb
+  become: yes 
+  roles:
+    - role: community.zabbix.zabbix_web
+      vars:
+        zabbix_version: "{{ zabbix_version }}"
+  tasks:
+    - name: Déployer /etc/zabbix/web/zabbix.conf.php (DB distante)
+      template:
+        src: templates/zabbix.conf.php.j2
+        dest: /etc/zabbix/web/zabbix.conf.php
+        owner: apache
+        group: apache
+        mode: '0640'
+      notify: Restart httpd
+
+    - name: Ouvrir 80/tcp (et 443 si SSL)
+      ansible.posix.firewalld:
+        port: "{{ item }}"
+        permanent: yes
+        state: enabled
+        immediate: yes
+      loop:
+        - 80/tcp
+
+    - name: SELinux booleans pour web -> DB
+      seboolean:
+        name: "{{ item.name }}"
+        state: "{{ item.state }}"
+        persistent: "{{ item.persistent }}"
+      loop: "{{ selinux_booleans }}"
+
+  handlers:
+    - name: Restart httpd
+      systemd:
+        name: httpd
+        state: restarted
+
+# --------------------- PROXY PAR SITE ---------------------
+- name: Zabbix Proxy (DB locale sur le proxy)
+  hosts: Proxy
+  become: yes 
+  vars:
+    zbx_proxy_db_name: zabbix_proxy
+    zbx_proxy_db_user: zbxproxy
+    zbx_proxy_db_pass: "proxyPass!"
+
+  pre_tasks:
+
+    - name: Installer MariaDB pour le proxy
+      dnf:
+        name:
+          - mariadb
+          - mariadb-server
+        state: present
+
+    - name: Activer et démarrer MariaDB (proxy)
+      systemd:
+        name: mariadb
+        state: started
+        enabled: yes
+
+    - name: Créer la base du proxy
+      community.mysql.mysql_db:
+        name: "{{ zbx_proxy_db_name }}"
+        state: present
+        login_unix_socket: /var/lib/mysql/mysql.sock
+
+    - name: Créer l’utilisateur SQL du proxy
+      community.mysql.mysql_user:
+        name: "{{ zbx_proxy_db_user }}"
+        host: "localhost"
+        password: "{{ zbx_proxy_db_pass }}"
+        priv: "{{ zbx_proxy_db_name }}.*:ALL"
+        state: present
+        login_unix_socket: /var/lib/mysql/mysql.sock
+
+  roles:
+    - role: community.zabbix.zabbix_proxy
+      vars:
+        zabbix_proxy_dbname: "{{ zbx_proxy_db_name }}"
+        zabbix_proxy_dbuser: "{{ zbx_proxy_db_user }}"
+        zabbix_proxy_dbpassword: "{{ zbx_proxy_db_pass }}"
+        zabbix_proxy_mode: 0
+        zabbix_server_host: "{{ hostvars['Zabbix-serveur'].ansible_host }}"
+        zabbix_version: "{{ zabbix_version }}"
+
+  tasks:
+
+    - name: Ouvrir le port 10051/tcp (proxy)
+      ansible.posix.firewalld:
+        port: 10051/tcp
+        permanent: yes
+        state: enabled
+        immediate: yes

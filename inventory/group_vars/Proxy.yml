@@ -1,0 +1,3 @@
+zabbix_proxy: "{{ inventory_hostname }}"
+zabbix_proxy_mode: active
+zabbix_proxy_hostname: "{{ inventory_hostname }}"

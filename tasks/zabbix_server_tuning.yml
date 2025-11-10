@@ -1,0 +1,19 @@
+---
+
+- name: Ajouter optimisations zabbix_server.conf
+  lineinfile:
+    path: /etc/zabbix/zabbix_server.conf
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+  loop:
+    - { regexp: '^StartPollers=', line: 'StartPollers=10' }
+    - { regexp: '^StartIPMIPollers=', line: 'StartIPMIPollers=5' }
+    - { regexp: '^CacheSize=', line: 'CacheSize=512M' }
+    - { regexp: '^HistoryCacheSize=', line: 'HistoryCacheSize=256M' }
+    - { regexp: '^TrendCacheSize=', line: 'TrendCacheSize=128M' }
+    - { regexp: '^ValueCacheSize=', line: 'ValueCacheSize=128M' }
+
+- name: Restart Zabbix server
+  systemd:
+    name: zabbix-server
+    state: restarted
