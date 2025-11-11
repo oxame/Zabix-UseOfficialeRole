@@ -1,0 +1,55 @@
+---
+- name: Install Zabbix server packages (Debian)
+  ansible.builtin.apt:
+    name:
+      - zabbix-server-pgsql
+      - zabbix-sql-scripts
+      - python3-psycopg2
+    state: "{{ zabbix_server_package_state }}"
+  when: ansible_pkg_mgr == 'apt'
+
+- name: Install Zabbix server packages (RedHat)
+  ansible.builtin.yum:
+    name:
+      - zabbix-server-pgsql
+      - zabbix-sql-scripts
+      - python3-psycopg2
+    state: "{{ zabbix_server_package_state }}"
+  when: ansible_pkg_mgr in ['dnf', 'yum']
+
+- name: Configure zabbix_server.conf
+  ansible.builtin.template:
+    src: zabbix_server.conf.j2
+    dest: /etc/zabbix/zabbix_server.conf
+    owner: root
+    group: zabbix
+    mode: '0640'
+  notify: Restart zabbix-server
+
+- name: Ensure Zabbix server service is enabled and running
+  ansible.builtin.service:
+    name: zabbix-server
+    state: started
+    enabled: true
+
+- name: Check if Zabbix schema already exists
+  community.postgresql.postgresql_query:
+    db: "{{ zabbix_server_db_name }}"
+    login_host: "{{ zabbix_server_db_host }}"
+    login_user: "{{ zabbix_server_db_user }}"
+    login_password: "{{ zabbix_server_db_password }}"
+    query: "SELECT COUNT(1) FROM pg_tables WHERE schemaname = 'public' AND tablename = 'users';"
+  register: zabbix_server_schema_probe
+  failed_when: false
+
+- name: Import Zabbix PostgreSQL schema
+  ansible.builtin.shell: |
+    set -o pipefail
+    zcat /usr/share/zabbix-sql-scripts/postgresql/server.sql.gz | \
+    PGPASSWORD='{{ zabbix_server_db_password }}' psql \
+      --host='{{ zabbix_server_db_host }}' \
+      --username='{{ zabbix_server_db_user }}' \
+      --dbname='{{ zabbix_server_db_name }}'
+  args:
+    executable: /bin/bash
+  when: (zabbix_server_schema_probe.query_result | default([])) | length == 0

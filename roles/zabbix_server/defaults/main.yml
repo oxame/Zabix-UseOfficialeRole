@@ -1,0 +1,11 @@
+---
+zabbix_server_db_host: 127.0.0.1
+zabbix_server_db_name: zabbix
+zabbix_server_db_user: zabbix
+zabbix_server_db_password: change_me
+zabbix_server_listen_ip: "{{ ansible_host | default('0.0.0.0') }}"
+zabbix_server_log_file: /var/log/zabbix/zabbix_server.log
+zabbix_server_cache_size: 512M
+zabbix_server_history_cache_size: 512M
+zabbix_server_start_pollers: 10
+zabbix_server_package_state: present

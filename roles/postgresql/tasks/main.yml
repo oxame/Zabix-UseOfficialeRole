@@ -1,0 +1,80 @@
+---
+- name: Ensure PostgreSQL packages are installed (Debian)
+  ansible.builtin.apt:
+    name: "{{ postgresql_packages.apt }}"
+    state: present
+  when: ansible_pkg_mgr == 'apt'
+
+- name: Ensure PostgreSQL packages are installed (RedHat)
+  ansible.builtin.yum:
+    name: "{{ postgresql_packages.dnf }}"
+    state: present
+  when: ansible_pkg_mgr in ['dnf', 'yum']
+
+- name: Initialize PostgreSQL database cluster (RedHat)
+  ansible.builtin.command:
+    cmd: "/usr/pgsql-{{ postgresql_version }}/bin/postgresql-{{ postgresql_version }}-setup initdb"
+    creates: "{{ postgresql_conf_path }}"
+  when: ansible_os_family == 'RedHat'
+
+- name: Ensure configuration directory exists
+  ansible.builtin.file:
+    path: "{{ postgresql_conf_dir }}"
+    state: directory
+    owner: postgres
+    group: postgres
+    mode: '0755'
+
+- name: Build list of allowed client addresses
+  ansible.builtin.set_fact:
+    postgresql_allowed_hosts: "{{ ['127.0.0.1/32'] | union(postgresql_allowed_hosts | default([])) }}"
+
+- name: Include client addresses from inventory groups
+  ansible.builtin.set_fact:
+    postgresql_allowed_hosts: "{{ postgresql_allowed_hosts | union(_resolved_addresses) }}"
+  vars:
+    _resolved_addresses: "{{ groups[group_name] | default([]) | map('extract', hostvars) | map(attribute='ansible_host') | select('defined') | map('regex_replace', '$', '/32') | list }}"
+  loop: "{{ postgresql_allowed_groups }}"
+  loop_control:
+    loop_var: group_name
+
+- name: Deploy postgresql.conf
+  ansible.builtin.template:
+    src: postgresql.conf.j2
+    dest: "{{ postgresql_conf_path }}"
+    owner: postgres
+    group: postgres
+    mode: '0644'
+  notify: Restart PostgreSQL
+
+- name: Deploy pg_hba.conf
+  ansible.builtin.template:
+    src: pg_hba.conf.j2
+    dest: "{{ postgresql_hba_path }}"
+    owner: postgres
+    group: postgres
+    mode: '0640'
+  notify: Restart PostgreSQL
+
+- name: Ensure PostgreSQL service is enabled and started
+  ansible.builtin.service:
+    name: "{{ postgresql_service_name }}"
+    state: started
+    enabled: true
+
+- name: Ensure database user exists
+  become: true
+  become_user: postgres
+  community.postgresql.postgresql_user:
+    name: "{{ postgresql_db_user }}"
+    password: "{{ postgresql_db_password }}"
+    state: present
+    role_attr_flags: LOGIN
+
+- name: Ensure database exists
+  become: true
+  become_user: postgres
+  community.postgresql.postgresql_db:
+    name: "{{ postgresql_db_name }}"
+    owner: "{{ postgresql_db_user }}"
+    state: present

@@ -1,0 +1,7 @@
+---
+zabbix_proxy_mode: active
+zabbix_proxy_server: ''
+zabbix_proxy_hostname: "{{ inventory_hostname }}"
+zabbix_proxy_listen_ip: "{{ ansible_host | default('0.0.0.0') }}"
+zabbix_proxy_db_name: /var/lib/zabbix/zabbix_proxy.db
+zabbix_proxy_package_state: present

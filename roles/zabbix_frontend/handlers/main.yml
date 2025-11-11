@@ -1,0 +1,5 @@
+---
+- name: Restart web service
+  ansible.builtin.service:
+    name: "{{ zabbix_frontend_web_service }}"
+    state: restarted

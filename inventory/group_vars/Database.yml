@@ -1,4 +1,0 @@
-zabbix_db_type: mysql
-zabbix_db_host: "{{ inventory_hostname }}"
-zabbix_db_user: zabbix
-zabbix_db_password: password

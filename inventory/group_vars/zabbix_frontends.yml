@@ -1,0 +1,9 @@
+---
+zabbix_frontend_db_host: "{{ hostvars[groups['zabbix_databases'][0]].ansible_host }}"
+zabbix_frontend_db_name: "{{ zabbix_db_name }}"
+zabbix_frontend_db_user: "{{ zabbix_db_user }}"
+zabbix_frontend_db_password: "{{ zabbix_db_password }}"
+zabbix_frontend_db_type: POSTGRESQL
+zabbix_frontend_db_port: 5432
+zabbix_frontend_server_host: "{{ hostvars[groups['zabbix_servers'][0]].ansible_host }}"
+zabbix_frontend_server_name: "{{ groups['zabbix_servers'][0] }}"

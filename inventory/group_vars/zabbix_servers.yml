@@ -1,0 +1,10 @@
+---
+zabbix_server_db_host: "{{ hostvars[groups['zabbix_databases'][0]].ansible_host }}"
+zabbix_server_db_name: "{{ zabbix_db_name }}"
+zabbix_server_db_user: "{{ zabbix_db_user }}"
+zabbix_server_db_password: "{{ zabbix_db_password }}"
+zabbix_server_listen_ip: "{{ ansible_host }}"
+zabbix_server_start_pollers: 20
+zabbix_server_cache_size: 512M
+zabbix_server_history_cache_size: 512M
+zabbix_api_url: "http://{{ ansible_host }}/zabbix"

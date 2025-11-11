@@ -1,0 +1,5 @@
+# Managed by Ansible
+listen_addresses = '{{ postgresql_listen_addresses }}'
+{% for key, value in postgresql_tuning.items() %}
+{{ key }} = {{ value }}
+{% endfor %}

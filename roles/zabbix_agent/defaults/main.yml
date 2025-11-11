@@ -1,0 +1,9 @@
+---
+zabbix_agent_server: ''
+zabbix_agent_proxy: ''
+zabbix_agent_listen_port: 10050
+zabbix_agent_host_groups:
+  - Linux servers
+zabbix_agent_package_state: present
+zabbix_agent_registration_target: ''
+zabbix_agent_templates: []

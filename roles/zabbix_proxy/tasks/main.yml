@@ -1,0 +1,57 @@
+---
+- name: Ensure proxy server host is defined
+  ansible.builtin.assert:
+    that:
+      - zabbix_proxy_server | length > 0
+    fail_msg: "zabbix_proxy_server must reference a Zabbix server host"
+
+- name: Resolve Zabbix server IP address
+  ansible.builtin.set_fact:
+    zabbix_proxy_server_ip: "{{ hostvars[zabbix_proxy_server].ansible_host | default('127.0.0.1') }}"
+
+- name: Install Zabbix proxy packages (Debian)
+  ansible.builtin.apt:
+    name:
+      - zabbix-proxy-sqlite3
+      - sqlite3
+    state: "{{ zabbix_proxy_package_state }}"
+  when: ansible_pkg_mgr == 'apt'
+
+- name: Install Zabbix proxy packages (RedHat)
+  ansible.builtin.yum:
+    name:
+      - zabbix-proxy-sqlite3
+      - sqlite
+    state: "{{ zabbix_proxy_package_state }}"
+  when: ansible_pkg_mgr in ['dnf', 'yum']
+
+- name: Ensure proxy database directory exists
+  ansible.builtin.file:
+    path: "{{ zabbix_proxy_db_name | dirname }}"
+    state: directory
+    owner: zabbix
+    group: zabbix
+    mode: '0750'
+
+- name: Ensure proxy database file exists
+  ansible.builtin.file:
+    path: "{{ zabbix_proxy_db_name }}"
+    state: touch
+    owner: zabbix
+    group: zabbix
+    mode: '0640'
+
+- name: Deploy zabbix_proxy.conf
+  ansible.builtin.template:
+    src: zabbix_proxy.conf.j2
+    dest: /etc/zabbix/zabbix_proxy.conf
+    owner: root
+    group: zabbix
+    mode: '0640'
+  notify: Restart zabbix-proxy
+
+- name: Ensure zabbix-proxy service is enabled and running
+  ansible.builtin.service:
+    name: zabbix-proxy
+    state: started
+    enabled: true

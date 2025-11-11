@@ -1,0 +1,5 @@
+---
+zabbix_version: "6.4"
+zabbix_repository_package_url_debian: "https://repo.zabbix.com/zabbix/{{ zabbix_version }}/debian/pool/main/z/zabbix-release/zabbix-release_{{ zabbix_version }}-1+debian12_all.deb"
+zabbix_repository_package_url_rhel: "https://repo.zabbix.com/zabbix/{{ zabbix_version }}/rhel/9/x86_64/zabbix-release-{{ zabbix_version }}-1.el9.noarch.rpm"
+zabbix_repository_package_url: "{{ (ansible_os_family == 'Debian') | ternary(zabbix_repository_package_url_debian, zabbix_repository_package_url_rhel) }}"
