@@ -1,0 +1,51 @@
+# ============================================================================
+#  BLOC DATABASE — Zabbix Server + MariaDB
+# ============================================================================
+
+# 1) Installation MariaDB et dépendances
+- name: Installer MariaDB (serveur + client)
+  tags: database
+  dnf:
+    name:
+      - mariadb
+      - mariadb-server
+      - mariadb-backup
+      - python3-PyMySQL
+    state: present
+
+- name: Activer et démarrer MariaDB
+  tags: database
+  systemd:
+    name: mariadb
+    state: started
+    enabled: yes
+
+# 2) Vérifier si root a déjà un mot de passe
+- name: Vérifier si root a déjà un mot de passe MariaDB
+  tags: database
+  command: mysql -uroot -e "SELECT 1;"
+  register: root_no_pass
+  ignore_errors: true
+  changed_when: false
+
+# 3) Définir le mot de passe root (syntaxe 100 pourcent MariaDB)
+- name: Définir le mot de passe root (MariaDB)
+  tags: database
+  command: >
+    mysql -uroot -e
+    "SET PASSWORD FOR 'root'@'localhost' = PASSWORD('{{ mysql_root_password }}');"
+  when:
+    - root_no_pass.rc == 0
+
+# 4) Créer fichier .my.cnf (utilisé automatiquement par Ansible)
+- name: Créer /root/.my.cnf
+  tags: database
+  copy:
+    dest: /root/.my.cnf
+    owner: root
+    group: root
+    mode: '0600'
+    content: |
+      [client]
+      user=root
+      password={{ mysql_root_password }}

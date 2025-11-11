@@ -1,26 +1,28 @@
 ---
+- name: Playbook multi rôles
+  hosts: all
+
 - name: Pré-requis communs (PyMySQL, firewalld)
   hosts: all
-  become: yes 
-  tasks:
-    - name: Installer dépendances de base
-      dnf:
-        name:
-          - python3-PyMySQL
-          - policycoreutils-python-utils
-          - firewalld
-        state: present
 
-    - name: Activer firewalld
-      systemd:
-        name: firewalld
-        state: started
-        enabled: yes
+  tasks:
+  - name: Installer dépendances de base
+    dnf:
+      name:
+        - python3-PyMySQL
+        - policycoreutils-python-utils
+        - firewalld
+      state: present
+
+  - name: Activer firewalld
+    systemd:
+      name: firewalld
+      state: started
+      enabled: yes
 
 # --------------------- DATABASE ---------------------
 - name: Base de données MariaDB pour Zabbix
   hosts: Database
-  become: yes 
   vars:
     mariadb_conf_dir: /etc/my.cnf.d
   tasks:
@@ -115,7 +117,6 @@
 # --------------------- ZABBIX SERVER ---------------------
 - name: Zabbix Server
   hosts: Serveur
-  become: yes 
   roles:
     - role: community.zabbix.zabbix_server
       vars:
@@ -153,7 +154,6 @@
 # --------------------- FRONT WEB ---------------------
 - name: Zabbix FrontWeb
   hosts: FrontWeb
-  become: yes 
   roles:
     - role: community.zabbix.zabbix_web
       vars:
@@ -193,7 +193,6 @@
 # --------------------- PROXY PAR SITE ---------------------
 - name: Zabbix Proxy (DB locale sur le proxy)
   hosts: Proxy
-  become: yes 
   vars:
     zbx_proxy_db_name: zabbix_proxy
     zbx_proxy_db_user: zbxproxy
