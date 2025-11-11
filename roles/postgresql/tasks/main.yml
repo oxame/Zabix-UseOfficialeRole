@@ -1,23 +1,27 @@
 ---
 - name: Ensure PostgreSQL packages are installed (Debian)
+  become: true
   ansible.builtin.apt:
     name: "{{ postgresql_packages.apt }}"
     state: present
   when: ansible_pkg_mgr == 'apt'
 
 - name: Ensure PostgreSQL packages are installed (RedHat)
+  become: true
   ansible.builtin.yum:
     name: "{{ postgresql_packages.dnf }}"
     state: present
   when: ansible_pkg_mgr in ['dnf', 'yum']
 
 - name: Initialize PostgreSQL database cluster (RedHat)
+  become: true
   ansible.builtin.command:
     cmd: "/usr/pgsql-{{ postgresql_version }}/bin/postgresql-{{ postgresql_version }}-setup initdb"
     creates: "{{ postgresql_conf_path }}"
   when: ansible_os_family == 'RedHat'
 
 - name: Ensure configuration directory exists
+  become: true
   ansible.builtin.file:
     path: "{{ postgresql_conf_dir }}"
     state: directory
@@ -39,6 +43,7 @@
     loop_var: group_name
 
 - name: Deploy postgresql.conf
+  become: true
   ansible.builtin.template:
     src: postgresql.conf.j2
     dest: "{{ postgresql_conf_path }}"
@@ -48,6 +53,7 @@
   notify: Restart PostgreSQL
 
 - name: Deploy pg_hba.conf
+  become: true
   ansible.builtin.template:
     src: pg_hba.conf.j2
     dest: "{{ postgresql_hba_path }}"
@@ -57,6 +63,7 @@
   notify: Restart PostgreSQL
 
 - name: Ensure PostgreSQL service is enabled and started
+  become: true
   ansible.builtin.service:
     name: "{{ postgresql_service_name }}"
     state: started

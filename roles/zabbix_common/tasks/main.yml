@@ -1,17 +1,20 @@
 ---
 - name: Install Zabbix repository package (Debian)
+  become: true
   ansible.builtin.apt:
     deb: "{{ zabbix_repository_package_url }}"
     state: present
   when: ansible_pkg_mgr == 'apt'
 
 - name: Install Zabbix repository package (RedHat)
+  become: true
   ansible.builtin.yum:
     name: "{{ zabbix_repository_package_url }}"
     state: present
   when: ansible_pkg_mgr in ['dnf', 'yum']
 
 - name: Refresh package cache after repository install (Debian)
+  become: true
   ansible.builtin.apt:
     update_cache: true
   when: ansible_pkg_mgr == 'apt'

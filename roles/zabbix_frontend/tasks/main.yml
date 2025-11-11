@@ -1,17 +1,20 @@
 ---
 - name: Install Zabbix frontend packages (Debian)
+  become: true
   ansible.builtin.apt:
     name: "{{ zabbix_frontend_packages_debian }}"
     state: present
   when: ansible_pkg_mgr == 'apt'
 
 - name: Install Zabbix frontend packages (RedHat)
+  become: true
   ansible.builtin.yum:
     name: "{{ zabbix_frontend_packages_rhel }}"
     state: present
   when: ansible_pkg_mgr in ['dnf', 'yum']
 
 - name: Ensure frontend configuration directory exists
+  become: true
   ansible.builtin.file:
     path: "{{ zabbix_frontend_web_root }}"
     state: directory
@@ -20,6 +23,7 @@
     mode: '0750'
 
 - name: Deploy zabbix.conf.php
+  become: true
   ansible.builtin.template:
     src: zabbix.conf.php.j2
     dest: "{{ zabbix_frontend_web_root }}/zabbix.conf.php"
@@ -29,6 +33,7 @@
   notify: Restart web service
 
 - name: Ensure web service is enabled and running
+  become: true
   ansible.builtin.service:
     name: "{{ zabbix_frontend_web_service }}"
     state: started
