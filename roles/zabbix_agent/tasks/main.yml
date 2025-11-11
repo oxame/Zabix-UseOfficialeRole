@@ -73,8 +73,8 @@
         ip: "{{ ansible_host }}"
         dns: ''
         port: "{{ zabbix_agent_listen_port }}"
-    groups: {{ zabbix_agent_host_groups }}
-    proxy: {{ (zabbix_agent_proxy | length > 0) | ternary(zabbix_agent_proxy, omit) }}
-    templates: {{ (zabbix_agent_templates | length > 0) | ternary(zabbix_agent_templates, omit) }}
+    groups: "{{ zabbix_agent_host_groups }}"
+    proxy: "{{ (zabbix_agent_proxy | length > 0) | ternary(zabbix_agent_proxy, omit) }}"
+    templates: "{{ (zabbix_agent_templates | length > 0) | ternary(zabbix_agent_templates, omit) }}"
   delegate_to: localhost
   run_once: false
