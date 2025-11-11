@@ -1,5 +1,6 @@
 ---
 - name: Install Zabbix server packages (Debian)
+  become: true
   ansible.builtin.apt:
     name:
       - zabbix-server-pgsql
@@ -9,6 +10,7 @@
   when: ansible_pkg_mgr == 'apt'
 
 - name: Install Zabbix server packages (RedHat)
+  become: true
   ansible.builtin.yum:
     name:
       - zabbix-server-pgsql
@@ -18,6 +20,7 @@
   when: ansible_pkg_mgr in ['dnf', 'yum']
 
 - name: Configure zabbix_server.conf
+  become: true
   ansible.builtin.template:
     src: zabbix_server.conf.j2
     dest: /etc/zabbix/zabbix_server.conf
@@ -27,6 +30,7 @@
   notify: Restart zabbix-server
 
 - name: Ensure Zabbix server service is enabled and running
+  become: true
   ansible.builtin.service:
     name: zabbix-server
     state: started
@@ -43,6 +47,7 @@
   failed_when: false
 
 - name: Import Zabbix PostgreSQL schema
+  become: true
   ansible.builtin.shell: |
     set -o pipefail
     zcat /usr/share/zabbix-sql-scripts/postgresql/server.sql.gz | \

@@ -14,18 +14,21 @@
     zabbix_agent_server_ip: "{{ hostvars[zabbix_agent_controller_host].ansible_host | default('127.0.0.1') }}"
 
 - name: Install Zabbix agent packages (Debian)
+  become: true
   ansible.builtin.apt:
     name: zabbix-agent
     state: "{{ zabbix_agent_package_state }}"
   when: ansible_pkg_mgr == 'apt'
 
 - name: Install Zabbix agent packages (RedHat)
+  become: true
   ansible.builtin.yum:
     name: zabbix-agent
     state: "{{ zabbix_agent_package_state }}"
   when: ansible_pkg_mgr in ['dnf', 'yum']
 
 - name: Deploy zabbix_agentd.conf
+  become: true
   ansible.builtin.template:
     src: zabbix_agentd.conf.j2
     dest: /etc/zabbix/zabbix_agentd.conf
@@ -35,6 +38,7 @@
   notify: Restart zabbix-agent
 
 - name: Ensure zabbix-agent service is enabled and running
+  become: true
   ansible.builtin.service:
     name: zabbix-agent
     state: started
