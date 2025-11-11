@@ -1,0 +1,28 @@
+---
+postgresql_version: 15
+postgresql_listen_addresses: '0.0.0.0'
+postgresql_service_name: "{{ (ansible_os_family == 'Debian') | ternary('postgresql', 'postgresql-' ~ postgresql_version) }}"
+postgresql_conf_dir: "{{ (ansible_os_family == 'Debian') | ternary('/etc/postgresql/' ~ postgresql_version ~ '/main', '/var/lib/pgsql/' ~ postgresql_version ~ '/data') }}"
+postgresql_conf_path: "{{ postgresql_conf_dir }}/postgresql.conf"
+postgresql_hba_path: "{{ postgresql_conf_dir }}/pg_hba.conf"
+postgresql_packages:
+  apt:
+    - "postgresql-{{ postgresql_version }}"
+    - "postgresql-client-{{ postgresql_version }}"
+    - python3-psycopg2
+  dnf:
+    - "postgresql{{ postgresql_version }}"
+    - "postgresql{{ postgresql_version }}-server"
+    - python3-psycopg2
+postgresql_db_name: zabbix
+postgresql_db_user: zabbix
+postgresql_db_password: change_me
+postgresql_allowed_groups:
+  - zabbix_servers
+  - zabbix_frontends
+postgresql_tuning:
+  max_connections: 100
+  shared_buffers: 256MB
+  work_mem: 16MB
+  maintenance_work_mem: 64MB
+postgresql_additional_hba_entries: []

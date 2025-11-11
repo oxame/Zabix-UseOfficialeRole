@@ -1,0 +1,7 @@
+---
+postgresql_db_name: "{{ zabbix_db_name }}"
+postgresql_db_user: "{{ zabbix_db_user }}"
+postgresql_db_password: "{{ zabbix_db_password }}"
+postgresql_allowed_groups:
+  - zabbix_servers
+  - zabbix_frontends

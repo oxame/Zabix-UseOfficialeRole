@@ -1,0 +1,3 @@
+---
+zabbix_proxy_server: zabbix-server-02
+zabbix_proxy_mode: passive

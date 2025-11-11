@@ -1,0 +1,76 @@
+---
+- name: Ensure a Zabbix server is provided
+  ansible.builtin.assert:
+    that:
+      - zabbix_agent_server | length > 0
+    fail_msg: "zabbix_agent_server must reference a Zabbix server host"
+
+- name: Determine agent controller host
+  ansible.builtin.set_fact:
+    zabbix_agent_controller_host: "{{ zabbix_agent_proxy | default(zabbix_agent_server) }}"
+
+- name: Resolve controller IP address
+  ansible.builtin.set_fact:
+    zabbix_agent_server_ip: "{{ hostvars[zabbix_agent_controller_host].ansible_host | default('127.0.0.1') }}"
+
+- name: Install Zabbix agent packages (Debian)
+  ansible.builtin.apt:
+    name: zabbix-agent
+    state: "{{ zabbix_agent_package_state }}"
+  when: ansible_pkg_mgr == 'apt'
+
+- name: Install Zabbix agent packages (RedHat)
+  ansible.builtin.yum:
+    name: zabbix-agent
+    state: "{{ zabbix_agent_package_state }}"
+  when: ansible_pkg_mgr in ['dnf', 'yum']
+
+- name: Deploy zabbix_agentd.conf
+  ansible.builtin.template:
+    src: zabbix_agentd.conf.j2
+    dest: /etc/zabbix/zabbix_agentd.conf
+    owner: root
+    group: zabbix
+    mode: '0640'
+  notify: Restart zabbix-agent
+
+- name: Ensure zabbix-agent service is enabled and running
+  ansible.builtin.service:
+    name: zabbix-agent
+    state: started
+    enabled: true
+
+- name: Determine registration target host
+  ansible.builtin.set_fact:
+    zabbix_agent_registration_host: "{{ zabbix_agent_registration_target | default(zabbix_agent_server) }}"
+
+- name: Assert API URL is defined on registration target
+  ansible.builtin.assert:
+    that:
+      - hostvars[zabbix_agent_registration_host].zabbix_api_url is defined
+    fail_msg: "zabbix_api_url must be defined on the registration target host"
+
+- name: Resolve API endpoint URL
+  ansible.builtin.set_fact:
+    zabbix_agent_api_url: "{{ hostvars[zabbix_agent_registration_host].zabbix_api_url }}"
+
+- name: Register host within Zabbix
+  community.zabbix.zabbix_host:
+    server_url: "{{ zabbix_agent_api_url }}"
+    login_user: "{{ zabbix_api_user }}"
+    login_password: "{{ zabbix_api_password }}"
+    validate_certs: "{{ zabbix_api_validate_certs | default(true) }}"
+    host: "{{ inventory_hostname }}"
+    status: enabled
+    interfaces:
+      - type: 1
+        main: 1
+        useip: 1
+        ip: "{{ ansible_host }}"
+        dns: ''
+        port: "{{ zabbix_agent_listen_port }}"
+    groups: {{ zabbix_agent_host_groups }}
+    proxy: {{ (zabbix_agent_proxy | length > 0) | ternary(zabbix_agent_proxy, omit) }}
+    templates: {{ (zabbix_agent_templates | length > 0) | ternary(zabbix_agent_templates, omit) }}
+  delegate_to: localhost
+  run_once: false

@@ -1,0 +1,6 @@
+---
+zabbix_agent_server: "{{ groups['zabbix_servers'][0] }}"
+zabbix_agent_host_groups:
+  - Linux servers
+zabbix_agent_templates:
+  - "Template OS Linux by Zabbix agent"

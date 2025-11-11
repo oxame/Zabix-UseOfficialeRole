@@ -1,4 +1,0 @@
-zabbix_link_templates:
-  - "Linux by Zabbix agent"
-firewall_ports:
-  - 10050/tcp

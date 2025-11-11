@@ -1,0 +1,3 @@
+---
+zabbix_proxy_mode: active
+zabbix_proxy_db_name: "/var/lib/zabbix/{{ inventory_hostname }}.db"

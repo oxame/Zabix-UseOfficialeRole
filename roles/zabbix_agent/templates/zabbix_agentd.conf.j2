@@ -1,0 +1,8 @@
+### Managed by Ansible ###
+PidFile=/run/zabbix/zabbix_agentd.pid
+LogFile=/var/log/zabbix/zabbix_agentd.log
+EnableRemoteCommands=1
+Server={{ zabbix_agent_server_ip }}
+ServerActive={{ zabbix_agent_server_ip }}
+Hostname={{ inventory_hostname }}
+ListenPort={{ zabbix_agent_listen_port }}
